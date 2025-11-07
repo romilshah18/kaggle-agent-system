@@ -15,102 +15,7 @@ POST /run?url=https://www.kaggle.com/competitions/titanic
 
 ---
 
-## 🏗️ Architecture Decision
-
-After evaluating 5 architecture options, we selected **Celery + Docker Hybrid** as the optimal solution.
-
-### Architecture Options Considered
-
-#### Option 1: Synchronous REST API ❌
-**Architecture**: Direct request-response processing
-
-**Pros**:
-- Simplest implementation
-- No additional infrastructure
-- Easy debugging
-
-**Cons**:
-- ❌ Timeout issues (training takes 30-60 min)
-- ❌ Cannot handle concurrency
-- ❌ Server resource exhaustion
-- ❌ Single point of failure
-
-**Verdict**: Rejected - fails core concurrency requirement
-
-#### Option 2: Async REST + Message Queue ✅
-**Architecture**: FastAPI → Redis Queue → Worker Pool → Docker
-
-**Pros**:
-- ✅ Handles concurrent requests via queue buffering
-- ✅ Scalable worker pool
-- ✅ Fault tolerance with retries
-- ✅ Resource isolation per job
-- ✅ Independent worker scaling
-
-**Cons**:
-- Requires message broker (Redis)
-- Need polling for completion
-- Job state management required
-
-**Verdict**: Strong candidate - meets all requirements
-
-#### Option 3: Serverless (AWS Lambda/Step Functions) ⚠️
-**Architecture**: API Gateway → Lambda → Step Functions
-
-**Pros**:
-- Auto-scaling
-- Pay-per-use
-- Managed infrastructure
-
-**Cons**:
-- ❌ 15-minute Lambda timeout (training exceeds)
-- ❌ Vendor lock-in
-- ❌ Cold start latency
-- ❌ Difficult local development
-
-**Verdict**: Not suitable - training time exceeds limits
-
-#### Option 4: Kubernetes Jobs 🎯
-**Architecture**: FastAPI → K8s API → Job Resources → Isolated Pods
-
-**Pros**:
-- ✅ True container isolation
-- ✅ Cluster-wide resource scheduling
-- ✅ Excellent concurrency handling
-- ✅ Production-grade orchestration
-- ✅ Auto-scaling and self-healing
-
-**Cons**:
-- ⚠️ Requires K8s cluster
-- ⚠️ Higher infrastructure complexity
-- ⚠️ Longer setup time
-- ⚠️ Pod startup latency (5-30s)
-
-**Verdict**: Production ideal, but overkill for demo
-
-#### Option 5: Celery + Docker Hybrid ✅✅ **SELECTED**
-**Architecture**: FastAPI → Celery Queue → Workers spawn Docker containers
-
-**Pros**:
-- ✅ Best balance: scalability + simplicity
-- ✅ Handles 50+ concurrent (queue buffering)
-- ✅ Sandbox isolation (Docker per job)
-- ✅ Familiar Python ecosystem
-- ✅ Easy to demo and extend
-- ✅ Retry/failure handling built-in
-- ✅ Resource limiting (CPU/memory per container)
-- ✅ Runs locally or cloud
-
-**Cons**:
-- Requires Redis/RabbitMQ
-- Workers need Docker daemon access
-- Manual scaling (vs K8s auto-scale)
-
-**Verdict**: **CHOSEN** - optimal for interview scope
-
----
-
-## 🔧 Final Architecture: Celery + Docker
+## 🏗️ Architecture
 
 ```
 ┌─────────────┐
@@ -151,7 +56,7 @@ After evaluating 5 architecture options, we selected **Celery + Docker Hybrid** 
 └─────────────────────────┘
 ```
 
-### Why This Architecture?
+### Key Features
 
 1. **Separation of Concerns**: API layer (stateless) separate from execution layer (workers)
 2. **Scalability**:
@@ -159,21 +64,21 @@ After evaluating 5 architecture options, we selected **Celery + Docker Hybrid** 
    - Vertical: Increase workers per node
    - Queue absorbs request spikes
 3. **Fault Tolerance**:
-   - Job retries (Celery automatic)
+   - Automatic job retries via Celery
    - Container crashes don't affect other jobs
-   - Worker failures → jobs requeued
+   - Worker failures → jobs requeued automatically
 4. **Resource Management**:
    - Docker CPU/memory limits per job
    - Prevents runaway processes
-   - Clean isolation
+   - Clean isolation between jobs
 5. **Observability**:
-   - Job status tracking (DB)
+   - Job status tracking (PostgreSQL)
    - Real-time logs (file storage)
    - Queue metrics (Flower UI)
-6. **K8s Migration Path**:
-   - Workers can create K8s Jobs instead of Docker containers
-   - 20-line code change
-   - Keep Celery for queueing logic
+6. **Cloud Ready**:
+   - Easy Kubernetes migration path
+   - Compatible with AWS, GCP, Azure
+   - Stateless design for horizontal scaling
 
 ---
 
@@ -313,55 +218,9 @@ System health check
 
 ---
 
-## 🧪 Testing
 
-### Integration Test
-```bash
-python tests/integration/test_end_to_end.py
-```
 
-Tests full pipeline: submit job → wait for completion → download submission
 
-### Load Test
-```bash
-python tests/load/test_concurrency.py
-```
-
-Simulates 50 concurrent requests, measures response times, success rate, and system stability.
-
----
-
-## 📈 Performance Benchmarks
-
-| Metric | Target | Actual |
-|--------|--------|--------|
-| API Response (job creation) | < 300ms | ~187ms |
-| Queue Throughput | 50 jobs/min | 60 jobs/min |
-| Job Success Rate | > 80% | 85% |
-| Concurrent Jobs (single server) | 4 active | 4 active |
-| System Capacity | 50 queued | 50+ queued |
-| Mean Job Duration | 30-45 min | 38 min |
-
----
-
-## 🎓 Extension Scenarios
-
-### 1. Multi-Tenancy
-Add `tenant_id` to Job model, tenant-specific Docker networks, isolated storage buckets, and resource quotas per tenant.
-
-### 2. GPU Support
-Detect competition type (image vs tabular), separate GPU worker queue, GPU-enabled Docker images, adjust resource limits.
-
-### 3. Real-Time Dashboard
-WebSocket endpoint (FastAPI), React frontend with real-time updates, Celery events monitoring.
-
-### 4. Cost Optimization
-Use spot instances (-70% cost), model caching, smart scheduling, LLM optimization (prompt caching, Claude Haiku), resource right-sizing.
-
-### 5. Kubernetes Migration
-Workers create K8s Jobs instead of Docker containers. See `docs/KUBERNETES_MIGRATION.md` for detailed guide.
-
----
 
 ## 📁 Project Structure
 ```
@@ -375,19 +234,4 @@ kaggle-agent-system/
 └── storage/                  # Runtime data
 ```
 
----
-
-## 📄 License
-
-MIT License
-
----
-
-## 🙏 Acknowledgments
-
-- FastAPI for async API framework
-- Celery for distributed task queue
-- Docker for containerization
-- Anthropic Claude for intelligent planning
-- Kaggle for competition platform
 

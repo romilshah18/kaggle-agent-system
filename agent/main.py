@@ -39,8 +39,10 @@ def main():
         # Stage 1: Analyze Competition
         logger.info("\n[STAGE 1] Analyzing competition...")
         logger.info(f"Competition URL: {kaggle_url}")
+        logger.info(f"Data and outputs will be stored in: {output_dir}")
         
-        analyzer = CompetitionAnalyzer(kaggle_url)
+        # Pass output_dir so data is stored with the submission
+        analyzer = CompetitionAnalyzer(kaggle_url, data_dir=str(output_dir))
         competition_info = analyzer.analyze()
         
         # PHASE 6: Enhanced logging

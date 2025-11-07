@@ -13,6 +13,10 @@ class CodeGenerator:
         self.strategy = strategy
         self.output_dir = output_dir
         self.client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+        
+        # Get available libraries from environment or use defaults
+        self.available_libs = self._get_available_libraries()
+        logger.info(f"Available libraries for code generation: {self.available_libs}")
     
     def generate(self) -> str:
         """Generate complete training script with feedback loop"""
@@ -133,7 +137,11 @@ IMPORTANT CODE REQUIREMENTS:
 - For submission, use test IDs from: test_df['{submission_schema.get('id_column', 'id')}']
 - Submission must be saved to exactly: {self.output_dir}/submission.csv
 
-The script must be self-contained and executable. Use only: pandas, numpy, scikit-learn, lightgbm, xgboost.
+AVAILABLE LIBRARIES:
+You can use any of these libraries (they are pre-installed):
+{self.available_libs}
+
+The script must be self-contained and executable. Import only what you need from the above list.
 """
         
         response = self.client.messages.create(
@@ -233,6 +241,30 @@ The script must be self-contained and executable. Use only: pandas, numpy, sciki
             feedback += f"\n\nREMINDER: Submission must have columns: {submission_schema.get('expected_columns', [])}"
         
         return feedback
+    
+    def _get_available_libraries(self) -> str:
+        """
+        Get list of available libraries from environment or use defaults
+        
+        Returns:
+            Comma-separated string of available library names
+        """
+        # Try to get from environment variable (set in Dockerfile)
+        env_libs = os.getenv('AGENT_AVAILABLE_LIBS')
+        
+        if env_libs:
+            return env_libs
+        
+        # Fallback to hardcoded list (for backward compatibility)
+        default_libs = [
+            'pandas', 'numpy', 'scipy',
+            'scikit-learn', 'xgboost', 'lightgbm', 'catboost',
+            'optuna', 'nltk', 'textblob',
+            'pillow', 'opencv-python', 'statsmodels',
+            'tqdm', 'joblib', 'matplotlib', 'seaborn'
+        ]
+        
+        return ', '.join(default_libs)
     
     def _generate_from_template(self) -> str:
         """Generate from template (fallback)"""

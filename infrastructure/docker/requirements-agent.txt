@@ -1,0 +1,69 @@
+# Kaggle Agent Container - Available Libraries
+# These libraries are available to generated code
+
+# ============================================================
+# CORE DATA SCIENCE LIBRARIES (Always Available)
+# ============================================================
+pandas==2.1.3
+numpy==1.26.2
+scipy==1.11.4
+
+# ============================================================
+# MACHINE LEARNING LIBRARIES
+# ============================================================
+# Tree-based models
+scikit-learn==1.3.2
+xgboost==2.0.2
+lightgbm==4.1.0
+
+# Neural networks (optional - uncomment if needed)
+# tensorflow==2.15.0
+# torch==2.1.0
+# keras==2.15.0
+
+# Other ML libraries
+catboost==1.2.2          # Another gradient boosting library
+optuna==3.4.0            # Hyperparameter optimization
+
+# ============================================================
+# DATA PROCESSING & FEATURE ENGINEERING
+# ============================================================
+# Text processing
+nltk==3.8.1
+textblob==0.17.1
+# transformers==4.35.2   # Uncomment for NLP tasks
+
+# Image processing
+pillow==10.1.0
+opencv-python==4.8.1.78
+# albumentations==1.3.1  # Uncomment for image augmentation
+
+# Time series
+statsmodels==0.14.0
+
+# ============================================================
+# UTILITIES
+# ============================================================
+tqdm==4.66.1             # Progress bars
+joblib==1.3.2            # Parallel processing
+matplotlib==3.8.2        # Plotting (for debugging)
+seaborn==0.13.0          # Statistical plots
+
+# ============================================================
+# AGENT DEPENDENCIES (Not for generated code)
+# ============================================================
+anthropic==0.46.0        # LLM API
+requests==2.31.0         # HTTP requests
+beautifulsoup4==4.12.2   # Web scraping
+lxml==4.9.3              # XML/HTML parsing
+kaggle==1.5.16           # Kaggle API
+
+# ============================================================
+# NOTES
+# ============================================================
+# - Keep versions pinned for reproducibility
+# - Generated code can use any library listed above
+# - Heavy libraries (tensorflow, torch) are commented out by default
+# - Uncomment as needed based on competition types
+# - Total size: ~1.5GB with all libraries
+

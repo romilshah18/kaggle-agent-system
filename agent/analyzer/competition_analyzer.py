@@ -11,11 +11,25 @@ logger = logging.getLogger(__name__)
 
 
 class CompetitionAnalyzer:
-    def __init__(self, kaggle_url: str):
+    def __init__(self, kaggle_url: str, data_dir: str = None):
+        """
+        Initialize Competition Analyzer
+        
+        Args:
+            kaggle_url: URL to the Kaggle competition
+            data_dir: Optional directory to store data. If None, uses /tmp/{competition_name}
+        """
         self.kaggle_url = kaggle_url
         self.competition_name = kaggle_url.rstrip('/').split('/')[-1]
-        self.data_dir = Path(f"/tmp/{self.competition_name}")
+        
+        # Use provided data_dir or default to /tmp
+        if data_dir:
+            self.data_dir = Path(data_dir) / "data"
+        else:
+            self.data_dir = Path(f"/tmp/{self.competition_name}")
+        
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Data will be stored in: {self.data_dir}")
         
     def analyze(self) -> Dict[str, Any]:
         """
@@ -73,7 +87,13 @@ class CompetitionAnalyzer:
                     zip_ref.extractall(self.data_dir)
                 zip_file.unlink()  # Remove zip after extraction
             
+            # Log all downloaded files for reference
+            data_files = list(self.data_dir.glob("*"))
             logger.info(f"✓ Data downloaded to {self.data_dir}")
+            logger.info(f"✓ Downloaded files: {[f.name for f in data_files]}")
+            
+            # Create a metadata file for future reference
+            self._create_data_metadata(data_files)
             
         except subprocess.TimeoutExpired:
             logger.error("Download timeout - competition data too large")
@@ -81,6 +101,52 @@ class CompetitionAnalyzer:
         except Exception as e:
             logger.error(f"Failed to download data: {e}")
             raise
+    
+    def _create_data_metadata(self, data_files: List[Path]):
+        """Create a metadata file documenting the downloaded data"""
+        try:
+            metadata_path = self.data_dir / "DATA_INFO.txt"
+            
+            with open(metadata_path, 'w') as f:
+                f.write(f"Competition: {self.competition_name}\n")
+                f.write(f"URL: {self.kaggle_url}\n")
+                f.write(f"Downloaded: {pd.Timestamp.now()}\n")
+                f.write(f"\n{'='*60}\n")
+                f.write("DOWNLOADED FILES:\n")
+                f.write(f"{'='*60}\n\n")
+                
+                for data_file in sorted(data_files):
+                    if data_file.is_file() and data_file.suffix in ['.csv', '.txt', '.json']:
+                        size_mb = data_file.stat().st_size / (1024 * 1024)
+                        f.write(f"  {data_file.name}\n")
+                        f.write(f"    Size: {size_mb:.2f} MB\n")
+                        
+                        # Add row count for CSV files
+                        if data_file.suffix == '.csv':
+                            try:
+                                df = pd.read_csv(data_file, nrows=0)
+                                # Count rows efficiently
+                                with open(data_file) as csv_file:
+                                    row_count = sum(1 for _ in csv_file) - 1  # -1 for header
+                                f.write(f"    Rows: {row_count:,}\n")
+                                f.write(f"    Columns: {len(df.columns)}\n")
+                                f.write(f"    Column Names: {', '.join(df.columns)}\n")
+                            except Exception as e:
+                                f.write(f"    (Could not read CSV: {e})\n")
+                        
+                        f.write("\n")
+                
+                f.write(f"\n{'='*60}\n")
+                f.write("USAGE:\n")
+                f.write(f"{'='*60}\n")
+                f.write("This data directory contains all training files used by the agent.\n")
+                f.write("Files are preserved for reproducibility and debugging.\n")
+                f.write("The generated code references these files directly.\n")
+            
+            logger.info(f"✓ Created data metadata: {metadata_path}")
+            
+        except Exception as e:
+            logger.warning(f"Could not create data metadata: {e}")
     
     def _analyze_data_files(self) -> Dict[str, Any]:
         """Analyze downloaded data files"""
